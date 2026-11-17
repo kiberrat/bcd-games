@@ -29,14 +29,14 @@ final class ShortcutRouter: ObservableObject {
 
     static func link(for windowsPath: String) -> String {
         var c = URLComponents()
-        c.scheme = "bcd"
+        c.scheme = "bcdlab"
         c.host = "play"
         c.queryItems = [URLQueryItem(name: "exe", value: windowsPath)]
-        return c.string ?? "bcd://play"
+        return c.string ?? "bcdlab://play"
     }
 
     func handle(_ url: URL) {
-        guard ["bcd", "madeira"].contains(url.scheme?.lowercased() ?? ""), url.host?.lowercased() == "play",
+        guard ["bcdlab", "bcdlab-legacy"].contains(url.scheme?.lowercased() ?? ""), url.host?.lowercased() == "play",
               let exe = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first(where: { $0.name == "exe" })?.value, !exe.isEmpty else { return }
         LogStore.shared.log("[shortcut] asked to start \(exe)")
@@ -216,7 +216,7 @@ enum SaveBackup {
     /// Folder names that are caches or Windows' own files, never saves.
     /// "steam" and "htmlcache": the Steam client Madeira Dock runs keeps its sign-in
     /// state (local.vdf) and web cookies under AppData\Local\Steam; never in a backup.
-    static let skipped: Set<String> = ["madeira", "temp", "shadercache", "d3dscache", "nvidia", "microsoft",
+    static let skipped: Set<String> = ["bcdlab-legacy", "temp", "shadercache", "d3dscache", "nvidia", "microsoft",
                                        "cache", "caches", "crashdumps", "logs", "webcache", "steam", "htmlcache"]
     static let maxFile = 256 << 20
     static let maxTotal: UInt64 = 3_500 << 20

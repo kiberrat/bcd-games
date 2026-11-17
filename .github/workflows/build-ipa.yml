@@ -2,7 +2,7 @@
 # under GPL-3.0-or-later and modified for BCD in November 2026. See THIRD-PARTY-NOTICES.md.
 # Portions copyright 2026 Russell Barton: code taken from https://github.com/thebcd69/bcd-games (pull request #46 by rbarton124)
 # under GPL-3.0-or-later with the Madeira Converter Exception and modified for BCD in November 2026. See THIRD-PARTY-NOTICES.md.
-name: Build Madeira IPA (unsigned)
+name: Build BCD Lab IPA (unsigned)
 
 on:
   workflow_dispatch:
@@ -21,13 +21,13 @@ concurrency:
 jobs:
   build:
     # madeira-bcd: runs only in the owner's repository; a fork's run is skipped.
-    if: github.repository == 'thebcd69/madeira-bcd'
+    # BCD Lab: permit the user's fork to build.
     runs-on: macos-15
     # contents: write only so the token can see DRAFT releases, which is where
     # the Metal Shader Converter installer is kept (drafts are not public).
     # Nothing in this job creates, edits or pushes anything.
     permissions:
-      contents: write
+      contents: read
       actions: read
     timeout-minutes: 360
     steps:
@@ -5782,42 +5782,21 @@ jobs:
             echo "::notice::all six macdrv symbols are exported"
           fi
 
-      - name: Package Madeira and Madeira2 unsigned IPAs
-        run: python3 tools/ota-variants.py package build-out/Madeira.xcarchive/Products/Applications/Madeira.app build-out ${{ steps.bn.outputs.n }}
-
-      # Over-the-air install: sign with the owner's certificate (kept in the
-      # owner's PRIVATE bucket, never in the repository) and put both signed IPAs
-      # plus installation pages (7-day pre-signed links) in the same bucket.
-      # A signing/upload failure is caught by the private-bucket gate below.
-      - name: Sign for OTA install (private bucket)
-        id: ota
-        continue-on-error: true
-        env:
-          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
-          B2_APP_KEY: ${{ secrets.B2_APP_KEY }}
-          B2_S3_ENDPOINT: ${{ secrets.B2_S3_ENDPOINT }}
-          B2_SIGN_BUCKET: ${{ secrets.B2_SIGN_BUCKET }}
-          SIGN_P12_PASSWORD: ${{ secrets.SIGN_P12_PASSWORD }}
-          OTA_MAIL_USER: ${{ secrets.OTA_MAIL_USER }}
-          OTA_MAIL_APP_PASSWORD: ${{ secrets.OTA_MAIL_APP_PASSWORD }}
-          OTA_MAIL_TO: ${{ secrets.OTA_MAIL_TO }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: bash tools/sign-and-publish-ota.sh build-out/Madeira-0.1.${{ steps.bn.outputs.n }}-unsigned.ipa ${{ steps.bn.outputs.n }} build-out/Madeira2-0.1.${{ steps.bn.outputs.n }}-unsigned.ipa
-
-      # Owner's decision (2026-10-02): no IPA artifact on GitHub at all. The
-      # repository and its Actions are public, so an artifact is downloadable by
-      # anyone; the only copy of a build is the signed IPA in the owner's
-      # private R2 bucket (the OTA step above). If that step did not succeed,
-      # the build fails here instead of keeping the IPA somewhere public.
-      - name: Check the IPA reached the private bucket
-        if: steps.ota.outcome != 'success'
+      - name: Package BCD Lab for SideStore
+        shell: bash
         run: |
-          echo "::error::OTA signing/upload did not succeed: this build's IPA was not kept anywhere (no GitHub artifact by design)"
-          exit 1
+          set -euo pipefail
+          mkdir -p build-out/mafia-lab/Payload
+          ditto build-out/Madeira.xcarchive/Products/Applications/Madeira.app build-out/mafia-lab/Payload/Madeira.app
+          cd build-out/mafia-lab
+          zip -qry ../BCD-Lab-unsigned.ipa Payload
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BCD-Lab-unsigned-IPA
+          path: build-out/BCD-Lab-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
       # Full logs as an artifact -- the annotations above are truncated, and
       # digging them out of the raw job log is painful.
       - uses: actions/upload-artifact@v4

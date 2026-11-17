@@ -12131,7 +12131,13 @@ static void ios_wow_band( ULONG_PTR *floor, ULONG_PTR *ceil )
     *ceil  = ios_furniture_ceiling ? ios_furniture_ceiling : (ULONG_PTR)user_space_limit;
     if (*ceil > IOS_WOW_CEF_POOLS_START) *ceil = IOS_WOW_CEF_POOLS_START;
 
-    if (kern_max && kern_max < *floor + IOS_WOW_WINDOW_SIZE)
+    /* Mafia Lab: TASK_VM_INFO is the actual task ceiling. On the reported
+     * 454 GB map the normal band crosses it, so even a free-looking Mach
+     * hole above that ceiling cannot be reserved. */
+    if (kern_max && *ceil > kern_max) *ceil = kern_max;
+
+    if (kern_max && *ceil <
+        ((*floor + IOS_WOW_WINDOW_SIZE - 1) & ~(IOS_WOW_WINDOW_SIZE - 1)) + IOS_WOW_WINDOW_SIZE)
     {
         ULONG_PTR top = kern_max & ~(IOS_WOW_WINDOW_SIZE - 1);
         ULONG_PTR lo  = (ULONG_PTR)0x400000000ULL;                      /* 16 GB */
